@@ -30,4 +30,6 @@ app.include_router(text_router, prefix="/text_calculate", tags=["text"])
 app.include_router(text_history_router, prefix="/text_history", tags=["text_history"])
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host=SERVER_URL, port=int(PORT), reload=(ENV == "dev"))
+    import os
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
