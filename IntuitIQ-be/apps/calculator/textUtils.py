@@ -1,10 +1,11 @@
-from mistralai import Mistral
+from mistralai.client import MistralClient
+import markdown
 from constants import MISTRAL_API_KEY
 
 if not MISTRAL_API_KEY:
     raise ValueError("MISTRAL_API_KEY not found in environment variables.")
 
-client = Mistral(api_key=MISTRAL_API_KEY)
+client = MistralClient(api_key=MISTRAL_API_KEY)
 model = "mistral-large-latest"
 
 def analyze_text(question: str):
@@ -16,7 +17,8 @@ def analyze_text(question: str):
                 "content": question
             },]
         )
-        response_content = chat_response.choices[0].message.content
+        print(chat_response)
+        response_content = markdown.markdown(chat_response.choices[0].message.content)
         return {
             "status": "success",
             "response": response_content
