@@ -34,7 +34,19 @@ const Home = () => {
         width: typeof window !== 'undefined' ? window.innerWidth : 0,
         height: typeof window !== 'undefined' ? window.innerHeight : 0,
     });
+    const [isTouchDevice, setIsTouchDevice] = useState(false);
+    const [_, setTouchStartPosition] = useState({ x: 0, y: 0 });
     const { color, setColor, setIsEraser, eraserSize, setEraserSize, brushSize, setBrushSize } = useDrawingTools();
+
+    // Detect touch device
+    useEffect(() => {
+        const checkTouchDevice = () => {
+            setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        };
+        checkTouchDevice();
+        window.addEventListener('resize', checkTouchDevice);
+        return () => window.removeEventListener('resize', checkTouchDevice);
+    }, []);
 
     const toolCursors = {
         selection: "default",
@@ -248,9 +260,20 @@ const Home = () => {
         setPanOffset({ x: 0, y: 0 });
     };
 
-    const getMouseCoordinates = (event: React.MouseEvent | MouseEvent) => {
-        const clientX = event.clientX - panOffset.x;
-        const clientY = event.clientY - panOffset.y;
+    const getCoordinates = (event: React.MouseEvent | React.TouchEvent) => {
+        let clientX: number, clientY: number;
+        
+        if ('touches' in event) {
+            // Touch event
+            const touch = event.touches[0] || event.changedTouches[0];
+            clientX = touch.clientX - panOffset.x;
+            clientY = touch.clientY - panOffset.y;
+        } else {
+            // Mouse event
+            clientX = event.clientX - panOffset.x;
+            clientY = event.clientY - panOffset.y;
+        }
+        
         return { clientX, clientY };
     };
 
@@ -308,14 +331,23 @@ const Home = () => {
         setElements(elementsCopy, true);
     };
 
-    const handleMouseDown = (event: React.MouseEvent) => {
+    const handleStart = (event: React.MouseEvent | React.TouchEvent) => {
         if (action === "writing") return;
-        const { clientX, clientY } = getMouseCoordinates(event);
-        if (event.button === 1 || pressedKeys.has(" ")) {
+        
+        // Prevent default touch behavior to avoid scrolling
+        if ('touches' in event) {
+            event.preventDefault();
+        }
+        
+        const { clientX, clientY } = getCoordinates(event);
+        setTouchStartPosition({ x: clientX, y: clientY });
+
+        if (('button' in event && event.button === 1) || pressedKeys.has(" ")) {
             setAction("panning");
             setStartPanMousePosition({ x: clientX, y: clientY });
             return;
         }
+        
         if (tool === "selection") {
             const element = getElementAtPosition(clientX, clientY, elements);
             if (element) {
@@ -346,20 +378,46 @@ const Home = () => {
         }
     };
 
-    const handleMouseMove = (event: React.MouseEvent) => {
-        const { clientX, clientY } = getMouseCoordinates(event);
-        (event.target as HTMLElement).style.cursor = toolCursors[tool];
+    const handleMove = (event: React.MouseEvent | React.TouchEvent) => {
+        const { clientX, clientY } = getCoordinates(event);
+        
+        // For touch devices, check if this is a pan gesture (two fingers)
+        if ('touches' in event && event.touches.length >= 2) {
+            setAction("panning");
+            const touch1 = event.touches[0];
+            const touch2 = event.touches[1];
+            const deltaX = (touch1.clientX + touch2.clientX) / 2 - startPanMousePosition.x;
+            const deltaY = (touch1.clientY + touch2.clientY) / 2 - startPanMousePosition.y;
+            setPanOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
+            setStartPanMousePosition({ 
+                x: (touch1.clientX + touch2.clientX) / 2, 
+                y: (touch1.clientY + touch2.clientY) / 2 
+            });
+            return;
+        }
+
+        const target = event.target as HTMLElement;
+        if (!isTouchDevice) {
+            target.style.cursor = toolCursors[tool];
+        }
+
         if (action === "panning") {
             const deltaX = clientX - startPanMousePosition.x;
             const deltaY = clientY - startPanMousePosition.y;
-            setPanOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY, }));
+            setPanOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
+            setStartPanMousePosition({ x: clientX, y: clientY });
             return;
         }
+
         if (tool === "selection") {
             const element = getElementAtPosition(clientX, clientY, elements);
-            if (element) (event.target as HTMLElement).style.cursor = cursorForPosition(element.position);
+            if (element && !isTouchDevice) {
+                target.style.cursor = cursorForPosition(element.position);
+            }
         } else if (tool === "eraser") {
-            (event.target as HTMLElement).style.cursor = toolCursors.eraser;
+            if (!isTouchDevice) {
+                target.style.cursor = toolCursors.eraser;
+            }
             if (action === "erasing") {
                 const element = getElementAtPosition(clientX, clientY, elements);
                 if (element) {
@@ -367,15 +425,20 @@ const Home = () => {
                 }
             }
         }
+
         if (action === "drawing") {
-            (event.target as HTMLElement).style.cursor = toolCursors[tool];
+            if (!isTouchDevice) {
+                target.style.cursor = toolCursors[tool];
+            }
             const index = elements.length - 1;
             const element = elements[index];
             if (element.type === "line" || element.type === "rectangle" || element.type === "ellipse" || element.type === "text") {
                 updateElement(index, element.x1, element.y1, clientX, clientY, tool);
             } else if (element.type === "pencil") updateElement(index, 0, 0, clientX, clientY, tool);
         } else if (action === "moving" && selectedElement) {
-            (event.target as HTMLElement).style.cursor = "move";
+            if (!isTouchDevice) {
+                target.style.cursor = "move";
+            }
             if (selectedElement.type === "pencil") {
                 const newPoints = selectedElement.points.map((_, i) => ({ x: clientX - (selectedElement.xOffsets?.[i] || 0), y: clientY - (selectedElement.yOffsets?.[i] || 0), }));
                 const elementsCopy = [...elements];
@@ -405,8 +468,21 @@ const Home = () => {
         }
     };
 
-    const handleMouseUp = (event: React.MouseEvent) => {
-        const { clientX, clientY } = getMouseCoordinates(event);
+    const handleEnd = (event: React.MouseEvent | React.TouchEvent) => {
+        let clientX: number, clientY: number;
+        
+        if ('changedTouches' in event) {
+            // Touch end event
+            const touch = event.changedTouches[0];
+            clientX = touch.clientX - panOffset.x;
+            clientY = touch.clientY - panOffset.y;
+        } else {
+            // Mouse up event
+            const { clientX: mouseX, clientY: mouseY } = getCoordinates(event);
+            clientX = mouseX;
+            clientY = mouseY;
+        }
+
         if (selectedElement) {
             if (
                 selectedElement.type === "text" &&
@@ -526,7 +602,8 @@ const Home = () => {
                 height: '100vh', 
                 width: '100vw',
                 overflow: 'hidden',
-                position: 'relative'
+                position: 'relative',
+                touchAction: 'none' // Prevent default touch behaviors
             }}
         >
             <Tools 
@@ -567,9 +644,12 @@ const Home = () => {
             <canvas 
                 id="canvas"
                 ref={canvasRef}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
+                onMouseDown={handleStart}
+                onMouseMove={handleMove}
+                onMouseUp={handleEnd}
+                onTouchStart={handleStart}
+                onTouchMove={handleMove}
+                onTouchEnd={handleEnd}
                 style={{ 
                     position: "absolute", 
                     zIndex: 1, 
@@ -599,7 +679,8 @@ const Home = () => {
                             borderRadius: '5px',
                             fontSize: `clamp(14px, 3vw, 20px)`,
                             color: 'white',
-                            zIndex: 3
+                            zIndex: 3,
+                            touchAction: 'none' // Make draggable work better on touch devices
                         }}
                     >
                         {latexExpression.map((latex, index) => (
@@ -680,6 +761,22 @@ const Home = () => {
                     textarea {
                         font-size: 16px !important;
                     }
+                }
+                
+                /* Prevent text selection on touch devices */
+                * {
+                    -webkit-touch-callout: none;
+                    -webkit-user-select: none;
+                    -khtml-user-select: none;
+                    -moz-user-select: none;
+                    -ms-user-select: none;
+                    user-select: none;
+                }
+                
+                /* Allow text selection in textarea */
+                textarea {
+                    -webkit-user-select: text;
+                    user-select: text;
                 }
                 `}
             </style>
