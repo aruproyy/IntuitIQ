@@ -66,7 +66,7 @@ const Home = () => {
                 width: window.innerWidth,
                 height: window.innerHeight,
             });
-            
+
             const canvas = canvasRef.current;
             if (canvas) {
                 const ctx = canvas.getContext("2d");
@@ -95,7 +95,7 @@ const Home = () => {
         const canvas = canvasRef.current;
         const context = canvas?.getContext("2d");
         if (!context || !canvas) return;
-        
+
         const roughCanvas = rough.canvas(canvas);
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.save();
@@ -110,8 +110,8 @@ const Home = () => {
     useEffect(() => {
         if (result) {
             renderLatexToCanvas(
-                result.expression || "", 
-                result.procedure || "", 
+                result.expression || "",
+                result.procedure || "",
                 result.solution || ""
             );
         }
@@ -148,19 +148,19 @@ const Home = () => {
                 ctx.lineWidth = brushSize;
             }
         }
-        
+
         // Load MathJax only if it's not already loaded
         if (!window.MathJax) {
             const script = document.createElement("script");
             script.src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-MML-AM_CHTML";
             script.async = true;
             document.head.appendChild(script);
-            script.onload = () => { 
-                window.MathJax.Hub.Config({ 
+            script.onload = () => {
+                window.MathJax.Hub.Config({
                     tex2jax: { inlineMath: [["$", "$"], ["\\(", "\\)"]] },
                     showProcessingMessages: false,
                     messageStyle: "none"
-                }); 
+                });
             };
             return () => { document.head.removeChild(script); };
         }
@@ -176,11 +176,11 @@ const Home = () => {
     }, [undo, redo]);
 
     useEffect(() => {
-        const panFunction = (event: WheelEvent) => { 
-            setPanOffset((prevState) => ({ 
-                x: prevState.x - event.deltaX, 
-                y: prevState.y - event.deltaY, 
-            })); 
+        const panFunction = (event: WheelEvent) => {
+            setPanOffset((prevState) => ({
+                x: prevState.x - event.deltaX,
+                y: prevState.y - event.deltaY,
+            }));
         };
         document.addEventListener("wheel", panFunction);
         return () => { document.removeEventListener("wheel", panFunction); };
@@ -214,13 +214,13 @@ const Home = () => {
         try {
             const procedureString = typeof procedure === 'string' ? procedure : '';
             const answerLines = procedureString.split('\n').filter(line => line.trim() !== '');
-            
+
             const latexLines: string[] = [];
-            
+
             if (expression) {
                 latexLines.push(`\\text{Problem: } ${expression}`);
             }
-            
+
             if (answerLines.length > 0 || solution) {
                 latexLines.push(`\\text{Solution: }`);
                 answerLines.forEach((line) => {
@@ -228,11 +228,11 @@ const Home = () => {
                     if (cleanedLine) latexLines.push(` ${cleanedLine}`);
                 });
             }
-            
+
             if (solution) {
                 latexLines.push(`\\text{Final Answer: } ${solution}`);
             }
-            
+
             setLatexExpression(latexLines);
             const canvas = canvasRef.current;
             if (canvas) {
@@ -262,18 +262,18 @@ const Home = () => {
 
     const getCoordinates = (event: React.MouseEvent | React.TouchEvent) => {
         let clientX: number, clientY: number;
-        
+
         if ('touches' in event) {
             // Touch event
             const touch = event.touches[0] || event.changedTouches[0];
-            clientX = touch.clientX - panOffset.x;
-            clientY = touch.clientY - panOffset.y;
+            clientX = touch.clientX;
+            clientY = touch.clientY;
         } else {
             // Mouse event
-            clientX = event.clientX - panOffset.x;
-            clientY = event.clientY - panOffset.y;
+            clientX = event.clientX;
+            clientY = event.clientY;
         }
-        
+
         return { clientX, clientY };
     };
 
@@ -333,12 +333,12 @@ const Home = () => {
 
     const handleStart = (event: React.MouseEvent | React.TouchEvent) => {
         if (action === "writing") return;
-        
+
         // Prevent default touch behavior to avoid scrolling
         if ('touches' in event) {
             event.preventDefault();
         }
-        
+
         const { clientX, clientY } = getCoordinates(event);
         setTouchStartPosition({ x: clientX, y: clientY });
 
@@ -347,9 +347,9 @@ const Home = () => {
             setStartPanMousePosition({ x: clientX, y: clientY });
             return;
         }
-        
+
         if (tool === "selection") {
-            const element = getElementAtPosition(clientX, clientY, elements);
+            const element = getElementAtPosition(clientX - panOffset.x, clientY - panOffset.y, elements);
             if (element) {
                 if (element.type === "pencil") {
                     const xOffsets = element.points.map(point => clientX - point.x);
@@ -364,14 +364,14 @@ const Home = () => {
                 else setAction("resizing");
             }
         } else if (tool === "eraser") {
-            const element = getElementAtPosition(clientX, clientY, elements);
+            const element = getElementAtPosition(clientX - panOffset.x, clientY - panOffset.y, elements);
             if (element) {
                 setElements(prev => prev.filter(el => el.id !== element.id));
                 setAction("erasing");
             }
         } else {
             const id = elements.length;
-            const element = createElement(id, clientX, clientY, clientX, clientY, tool, color, brushSize);
+            const element = createElement(id, clientX - panOffset.x, clientY - panOffset.y, clientX - panOffset.x, clientY - panOffset.y, tool, color, brushSize);
             setElements(prev => [...prev, element]);
             setSelectedElement(element);
             setAction(tool === "text" ? "writing" : "drawing");
@@ -380,7 +380,7 @@ const Home = () => {
 
     const handleMove = (event: React.MouseEvent | React.TouchEvent) => {
         const { clientX, clientY } = getCoordinates(event);
-        
+
         // For touch devices, check if this is a pan gesture (two fingers)
         if ('touches' in event && event.touches.length >= 2) {
             setAction("panning");
@@ -389,9 +389,9 @@ const Home = () => {
             const deltaX = (touch1.clientX + touch2.clientX) / 2 - startPanMousePosition.x;
             const deltaY = (touch1.clientY + touch2.clientY) / 2 - startPanMousePosition.y;
             setPanOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
-            setStartPanMousePosition({ 
-                x: (touch1.clientX + touch2.clientX) / 2, 
-                y: (touch1.clientY + touch2.clientY) / 2 
+            setStartPanMousePosition({
+                x: (touch1.clientX + touch2.clientX) / 2,
+                y: (touch1.clientY + touch2.clientY) / 2
             });
             return;
         }
@@ -410,7 +410,7 @@ const Home = () => {
         }
 
         if (tool === "selection") {
-            const element = getElementAtPosition(clientX, clientY, elements);
+            const element = getElementAtPosition(clientX - panOffset.x, clientY - panOffset.y, elements);
             if (element && !isTouchDevice) {
                 target.style.cursor = cursorForPosition(element.position);
             }
@@ -419,7 +419,7 @@ const Home = () => {
                 target.style.cursor = toolCursors.eraser;
             }
             if (action === "erasing") {
-                const element = getElementAtPosition(clientX, clientY, elements);
+                const element = getElementAtPosition(clientX - panOffset.x, clientY - panOffset.y, elements);
                 if (element) {
                     setElements(prev => prev.filter(el => el.id !== element.id));
                 }
@@ -433,14 +433,14 @@ const Home = () => {
             const index = elements.length - 1;
             const element = elements[index];
             if (element.type === "line" || element.type === "rectangle" || element.type === "ellipse" || element.type === "text") {
-                updateElement(index, element.x1, element.y1, clientX, clientY, tool);
-            } else if (element.type === "pencil") updateElement(index, 0, 0, clientX, clientY, tool);
+                updateElement(index, element.x1, element.y1, clientX - panOffset.x, clientY - panOffset.y, tool);
+            } else if (element.type === "pencil") updateElement(index, 0, 0, clientX - panOffset.x, clientY - panOffset.y, tool);
         } else if (action === "moving" && selectedElement) {
             if (!isTouchDevice) {
                 target.style.cursor = "move";
             }
             if (selectedElement.type === "pencil") {
-                const newPoints = selectedElement.points.map((_, i) => ({ x: clientX - (selectedElement.xOffsets?.[i] || 0), y: clientY - (selectedElement.yOffsets?.[i] || 0), }));
+                const newPoints = selectedElement.points.map((_, i) => ({ x: clientX - (selectedElement.xOffsets?.[i] || 0) - panOffset.x, y: clientY - (selectedElement.yOffsets?.[i] || 0) - panOffset.y, }));
                 const elementsCopy = [...elements];
                 elementsCopy[selectedElement.id] = { ...selectedElement, points: newPoints, };
                 setElements(elementsCopy, true);
@@ -449,15 +449,15 @@ const Home = () => {
                 const offsetY = selectedElement.offsetY || 0;
                 const width = selectedElement.x2 - selectedElement.x1;
                 const height = selectedElement.y2 - selectedElement.y1;
-                const newX1 = clientX - offsetX;
-                const newY1 = clientY - offsetY;
+                const newX1 = clientX - offsetX - panOffset.x;
+                const newY1 = clientY - offsetY - panOffset.y;
                 const options = selectedElement.type === "text" ? { text: selectedElement.text } : undefined;
                 updateElement(selectedElement.id, newX1, newY1, newX1 + width, newY1 + height, selectedElement.type, options);
             }
         } else if (action === "resizing" && selectedElement) {
             if (selectedElement.type === "line" || selectedElement.type === "rectangle" || selectedElement.type === "ellipse") {
                 if (selectedElement.position) {
-                    const resizedCoord = resizedCoordinates(clientX, clientY, selectedElement.position,
+                    const resizedCoord = resizedCoordinates(clientX - panOffset.x, clientY - panOffset.y, selectedElement.position,
                         { x1: selectedElement.x1, y1: selectedElement.y1, x2: selectedElement.x2, y2: selectedElement.y2 }
                     );
                     if (resizedCoord) {
@@ -470,12 +470,12 @@ const Home = () => {
 
     const handleEnd = (event: React.MouseEvent | React.TouchEvent) => {
         let clientX: number, clientY: number;
-        
+
         if ('changedTouches' in event) {
             // Touch end event
             const touch = event.changedTouches[0];
-            clientX = touch.clientX - panOffset.x;
-            clientY = touch.clientY - panOffset.y;
+            clientX = touch.clientX;
+            clientY = touch.clientY;
         } else {
             // Mouse up event
             const { clientX: mouseX, clientY: mouseY } = getCoordinates(event);
@@ -526,22 +526,22 @@ const Home = () => {
                 url: `${import.meta.env.VITE_API_URL}/image_calculate`,
                 data: { user_id: user.id, image: canvas.toDataURL("image/png"), dict_of_vars: dictOfVars }
             });
-            
+
             const resp = await response.data;
-            
+
             if (!resp.data || resp.data.length === 0) {
                 setErrorMessage("Input contains no Mathematical Problem");
                 setTimeout(() => setErrorMessage(null), 3000);
                 setIsFetching(false);
                 return;
             }
-            
+
             const validResults: GeneratedResult[] = [];
             resp.data.forEach((data: Response) => {
                 if (data.assign === true) {
                     setDictOfVars(prev => ({ ...prev, [data.expr]: data.steps }));
                 }
-                
+
                 if (data.expr && (data.steps || data.result)) {
                     validResults.push({
                         expression: data.expr,
@@ -550,18 +550,18 @@ const Home = () => {
                     });
                 }
             });
-            
+
             if (validResults.length === 0) {
                 setErrorMessage("No valid mathematical problems found");
                 setTimeout(() => setErrorMessage(null), 3000);
                 setIsFetching(false);
                 return;
             }
-            
+
             const ctx = canvas.getContext("2d");
             const imageData = ctx!.getImageData(0, 0, canvas.width, canvas.height);
             let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
-            
+
             for (let y = 0; y < canvas.height; y++) {
                 for (let x = 0; x < canvas.width; x++) {
                     const i = (y * canvas.width + x) * 4;
@@ -573,11 +573,11 @@ const Home = () => {
                     }
                 }
             }
-            
+
             const centerX = (minX + maxX) / 2;
             const centerY = (minY + maxY) / 2;
             setLatexPosition({ x: centerX, y: centerY });
-            
+
             validResults.forEach((result, index) => {
                 setTimeout(() => {
                     setResult(result);
@@ -594,28 +594,28 @@ const Home = () => {
     };
 
     return (
-        <div 
+        <div
             ref={containerRef}
-            style={{ 
-                display: 'flex', 
-                flexDirection: 'column', 
-                height: '100vh', 
+            style={{
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100vh',
                 width: '100vw',
                 overflow: 'hidden',
                 position: 'relative',
                 touchAction: 'none' // Prevent default touch behaviors
             }}
         >
-            <Tools 
-                tool={tool} 
-                setTool={handleSetTool} 
-                color={color} 
-                setColor={setColor} 
-                setIsEraser={setIsEraser} 
-                eraserSize={eraserSize} 
-                setEraserSize={setEraserSize} 
-                brushSize={brushSize} 
-                setBrushSize={setBrushSize} 
+            <Tools
+                tool={tool}
+                setTool={handleSetTool}
+                color={color}
+                setColor={setColor}
+                setIsEraser={setIsEraser}
+                eraserSize={eraserSize}
+                setEraserSize={setEraserSize}
+                brushSize={brushSize}
+                setBrushSize={setBrushSize}
             />
             <Sidebar />
             {action === "writing" && selectedElement?.type === "text" ? (
@@ -641,7 +641,7 @@ const Home = () => {
                     }}
                 />
             ) : null}
-            <canvas 
+            <canvas
                 id="canvas"
                 ref={canvasRef}
                 onMouseDown={handleStart}
@@ -650,9 +650,9 @@ const Home = () => {
                 onTouchStart={handleStart}
                 onTouchMove={handleMove}
                 onTouchEnd={handleEnd}
-                style={{ 
-                    position: "absolute", 
-                    zIndex: 1, 
+                style={{
+                    position: "absolute",
+                    zIndex: 1,
                     background: "#000",
                     width: '100%',
                     height: '100%',
@@ -665,11 +665,11 @@ const Home = () => {
                     onStop={(_, data) => { setLatexPosition({ x: data.x, y: data.y }) }}
                     bounds="parent"
                 >
-                    <div 
-                        className="latex-container" 
-                        style={{ 
+                    <div
+                        className="latex-container"
+                        style={{
                             position: "absolute",
-                            top: panOffset.y, 
+                            top: panOffset.y,
                             left: panOffset.x,
                             transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
                             maxWidth: '90%',
@@ -684,10 +684,10 @@ const Home = () => {
                         }}
                     >
                         {latexExpression.map((latex, index) => (
-                            <div 
-                                key={index} 
-                                style={{ 
-                                    animationDelay: `${index * 0.3}s`, 
+                            <div
+                                key={index}
+                                style={{
+                                    animationDelay: `${index * 0.3}s`,
                                     display: index <= visibleLines ? 'block' : 'none',
                                     marginBottom: '5px',
                                     wordBreak: 'break-word'
@@ -725,12 +725,12 @@ const Home = () => {
                     {errorMessage}
                 </div>
             )}
-            <Footer 
-                setReset={setReset} 
-                undo={undo} 
-                redo={redo} 
-                runRoute={runRoute} 
-                isFetching={isFetching} 
+            <Footer
+                setReset={setReset}
+                undo={undo}
+                redo={redo}
+                runRoute={runRoute}
+                isFetching={isFetching}
             />
             <style>
                 {`
@@ -740,29 +740,29 @@ const Home = () => {
                     90% { opacity: 1; }
                     100% { opacity: 0; }
                 }
-                
+
                 @media (max-width: 768px) {
                     .latex-container {
                         font-size: 16px !important;
                         padding: 8px !important;
                     }
-                    
+
                     textarea {
                         font-size: 18px !important;
                     }
                 }
-                
+
                 @media (max-width: 480px) {
                     .latex-container {
                         font-size: 14px !important;
                         padding: 5px !important;
                     }
-                    
+
                     textarea {
                         font-size: 16px !important;
                     }
                 }
-                
+
                 /* Prevent text selection on touch devices */
                 * {
                     -webkit-touch-callout: none;
@@ -772,7 +772,7 @@ const Home = () => {
                     -ms-user-select: none;
                     user-select: none;
                 }
-                
+
                 /* Allow text selection in textarea */
                 textarea {
                     -webkit-user-select: text;
