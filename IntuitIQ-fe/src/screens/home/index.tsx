@@ -210,6 +210,209 @@ const Home = () => {
         }
     }, [latexExpression]);
 
+    const getEventPosition = (e: MouseEvent | TouchEvent) => {
+        let clientX = 0;
+        let clientY = 0;
+
+        if (e instanceof MouseEvent) {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        } else if (e instanceof TouchEvent) {
+            clientX = e.touches[0]?.clientX ?? e.changedTouches[0]?.clientX ?? 0;
+            clientY = e.touches[0]?.clientY ?? e.changedTouches[0]?.clientY ?? 0;
+        }
+
+        const rect = canvasRef.current?.getBoundingClientRect();
+
+        return {
+            x: clientX - (rect?.left ?? 0) - panOffset.x,
+            y: clientY - (rect?.top ?? 0) - panOffset.y,
+        };
+    };
+
+    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
+        if (action === "writing") return;
+
+        if (e instanceof TouchEvent) {
+            e.preventDefault();
+        }
+
+        const { x, y } = getEventPosition(e);
+        setTouchStartPosition({ x, y });
+
+        if ((e instanceof MouseEvent && e.button === 1) || pressedKeys.has(" ")) {
+            setAction("panning");
+            setStartPanMousePosition({ x, y });
+            return;
+        }
+
+        if (tool === "selection") {
+            const element = getElementAtPosition(x, y, elements);
+            if (element) {
+                if (element.type === "pencil") {
+                    const xOffsets = element.points.map(point => x - point.x);
+                    const yOffsets = element.points.map(point => y - point.y);
+                    setSelectedElement({ ...element, xOffsets, yOffsets });
+                } else {
+                    const offsetX = x - element.x1;
+                    const offsetY = y - element.y1;
+                    setSelectedElement({ ...element, offsetX, offsetY });
+                }
+                if (element.position === "inside") setAction("moving");
+                else setAction("resizing");
+            }
+        } else if (tool === "eraser") {
+            const element = getElementAtPosition(x, y, elements);
+            if (element) {
+                setElements(prev => prev.filter(el => el.id !== element.id));
+                setAction("erasing");
+            }
+        } else {
+            const id = elements.length;
+            const element = createElement(id, x, y, x, y, tool, color, brushSize);
+            setElements(prev => [...prev, element]);
+            setSelectedElement(element);
+            setAction(tool === "text" ? "writing" : "drawing");
+        }
+    };
+
+    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
+        if (e instanceof TouchEvent) {
+            e.preventDefault();
+        }
+
+        const { x, y } = getEventPosition(e);
+        const target = e.target as HTMLElement;
+
+        if (!isTouchDevice) {
+            target.style.cursor = toolCursors[tool];
+        }
+
+        if (action === "panning") {
+            const deltaX = x - startPanMousePosition.x;
+            const deltaY = y - startPanMousePosition.y;
+            setPanOffset(prev => ({
+                x: prev.x + deltaX,
+                y: prev.y + deltaY
+            }));
+            setStartPanMousePosition({ x, y });
+            return;
+        }
+
+        if (tool === "selection") {
+            const element = getElementAtPosition(x, y, elements);
+            if (element && !isTouchDevice) {
+                target.style.cursor = cursorForPosition(element.position);
+            }
+        } else if (tool === "eraser") {
+            if (!isTouchDevice) {
+                target.style.cursor = toolCursors.eraser;
+            }
+            if (action === "erasing") {
+                const element = getElementAtPosition(x, y, elements);
+                if (element) {
+                    setElements(prev => prev.filter(el => el.id !== element.id));
+                }
+            }
+        }
+
+        if (action === "drawing") {
+            if (!isTouchDevice) {
+                target.style.cursor = toolCursors[tool];
+            }
+            const index = elements.length - 1;
+            const element = elements[index];
+            if (element.type === "line" || element.type === "rectangle" || element.type === "ellipse" || element.type === "text") {
+                updateElement(index, element.x1, element.y1, x, y, tool);
+            } else if (element.type === "pencil") updateElement(index, 0, 0, x, y, tool);
+        } else if (action === "moving" && selectedElement) {
+            if (!isTouchDevice) {
+                target.style.cursor = "move";
+            }
+            if (selectedElement.type === "pencil") {
+                const newPoints = selectedElement.points.map((_, i) => ({
+                    x: x - (selectedElement.xOffsets?.[i] || 0),
+                    y: y - (selectedElement.yOffsets?.[i] || 0)
+                }));
+                const elementsCopy = [...elements];
+                elementsCopy[selectedElement.id] = { ...selectedElement, points: newPoints };
+                setElements(elementsCopy, true);
+            } else if (selectedElement.type === "line" || selectedElement.type === "rectangle" || selectedElement.type === "ellipse" || selectedElement.type === "text") {
+                const offsetX = selectedElement.offsetX || 0;
+                const offsetY = selectedElement.offsetY || 0;
+                const width = selectedElement.x2 - selectedElement.x1;
+                const height = selectedElement.y2 - selectedElement.y1;
+                const newX1 = x - offsetX;
+                const newY1 = y - offsetY;
+                const options = selectedElement.type === "text" ? { text: selectedElement.text } : undefined;
+                updateElement(selectedElement.id, newX1, newY1, newX1 + width, newY1 + height, selectedElement.type, options);
+            }
+        } else if (action === "resizing" && selectedElement) {
+            if (selectedElement.type === "line" || selectedElement.type === "rectangle" || selectedElement.type === "ellipse") {
+                if (selectedElement.position) {
+                    const resizedCoord = resizedCoordinates(x, y, selectedElement.position,
+                        { x1: selectedElement.x1, y1: selectedElement.y1, x2: selectedElement.x2, y2: selectedElement.y2 }
+                    );
+                    if (resizedCoord) {
+                        updateElement(selectedElement.id, resizedCoord.x1, resizedCoord.y1, resizedCoord.x2, resizedCoord.y2, selectedElement.type);
+                    }
+                }
+            }
+        }
+    };
+
+    const handlePointerUp = (e: MouseEvent | TouchEvent) => {
+        const { x, y } = getEventPosition(e);
+
+        if (selectedElement) {
+            if (
+                selectedElement.type === "text" &&
+                x - (selectedElement as any).offsetX === selectedElement.x1 &&
+                y - (selectedElement as any).offsetY === selectedElement.y1
+            ) {
+                setAction("writing");
+                return;
+            }
+            const index = selectedElement.id;
+            const { id, type } = elements[index];
+            if ((action === "drawing" || action === "resizing") && adjustmentRequired(type)) {
+                const { x1, y1, x2, y2 } = adjustElementCoordinates(elements[index] as LineElement | RectangleElement | EllipseElement);
+                updateElement(id, x1, y1, x2, y2, type as Tool);
+            }
+        }
+        if (action === "writing") return;
+        setAction("none");
+        setSelectedElement(null);
+    };
+
+    // Set up event listeners
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const startHandler = (e: MouseEvent | TouchEvent) => handlePointerDown(e);
+        const moveHandler = (e: MouseEvent | TouchEvent) => handlePointerMove(e);
+        const endHandler = (e: MouseEvent | TouchEvent) => handlePointerUp(e);
+
+        canvas.addEventListener('mousedown', startHandler);
+        canvas.addEventListener('mousemove', moveHandler);
+        canvas.addEventListener('mouseup', endHandler);
+
+        canvas.addEventListener('touchstart', startHandler, { passive: false });
+        canvas.addEventListener('touchmove', moveHandler, { passive: false });
+        canvas.addEventListener('touchend', endHandler, { passive: false });
+
+        return () => {
+            canvas.removeEventListener('mousedown', startHandler);
+            canvas.removeEventListener('mousemove', moveHandler);
+            canvas.removeEventListener('mouseup', endHandler);
+
+            canvas.removeEventListener('touchstart', startHandler);
+            canvas.removeEventListener('touchmove', moveHandler);
+            canvas.removeEventListener('touchend', endHandler);
+        };
+    }, [handlePointerDown, handlePointerMove, handlePointerUp]);
+
     const renderLatexToCanvas = (expression: string, procedure: string, solution: string) => {
         try {
             const procedureString = typeof procedure === 'string' ? procedure : '';
@@ -258,23 +461,6 @@ const Home = () => {
         }
         setElements([]);
         setPanOffset({ x: 0, y: 0 });
-    };
-
-    const getCoordinates = (event: React.MouseEvent | React.TouchEvent) => {
-        let clientX: number, clientY: number;
-
-        if ('touches' in event) {
-            // Touch event
-            const touch = event.touches[0] || event.changedTouches[0];
-            clientX = touch.clientX;
-            clientY = touch.clientY;
-        } else {
-            // Mouse event
-            clientX = event.clientX;
-            clientY = event.clientY;
-        }
-
-        return { clientX, clientY };
     };
 
     const updateElement = (id: number, x1: number, y1: number, x2: number, y2: number, type: Tool, options?: { text?: string }) => {
@@ -329,179 +515,6 @@ const Home = () => {
                 return _exhaustiveCheck;
         }
         setElements(elementsCopy, true);
-    };
-
-    const handleStart = (event: React.MouseEvent | React.TouchEvent) => {
-        if (action === "writing") return;
-
-        // Prevent default touch behavior to avoid scrolling
-        if ('touches' in event) {
-            event.preventDefault();
-        }
-
-        const { clientX, clientY } = getCoordinates(event);
-        setTouchStartPosition({ x: clientX, y: clientY });
-
-        if (('button' in event && event.button === 1) || pressedKeys.has(" ")) {
-            setAction("panning");
-            setStartPanMousePosition({ x: clientX, y: clientY });
-            return;
-        }
-
-        if (tool === "selection") {
-            const element = getElementAtPosition(clientX - panOffset.x, clientY - panOffset.y, elements);
-            if (element) {
-                if (element.type === "pencil") {
-                    const xOffsets = element.points.map(point => clientX - point.x);
-                    const yOffsets = element.points.map(point => clientY - point.y);
-                    setSelectedElement({ ...element, xOffsets, yOffsets });
-                } else {
-                    const offsetX = clientX - element.x1;
-                    const offsetY = clientY - element.y1;
-                    setSelectedElement({ ...element, offsetX, offsetY });
-                }
-                if (element.position === "inside") setAction("moving");
-                else setAction("resizing");
-            }
-        } else if (tool === "eraser") {
-            const element = getElementAtPosition(clientX - panOffset.x, clientY - panOffset.y, elements);
-            if (element) {
-                setElements(prev => prev.filter(el => el.id !== element.id));
-                setAction("erasing");
-            }
-        } else {
-            const id = elements.length;
-            const element = createElement(id, clientX - panOffset.x, clientY - panOffset.y, clientX - panOffset.x, clientY - panOffset.y, tool, color, brushSize);
-            setElements(prev => [...prev, element]);
-            setSelectedElement(element);
-            setAction(tool === "text" ? "writing" : "drawing");
-        }
-    };
-
-    const handleMove = (event: React.MouseEvent | React.TouchEvent) => {
-        const { clientX, clientY } = getCoordinates(event);
-
-        // For touch devices, check if this is a pan gesture (two fingers)
-        if ('touches' in event && event.touches.length >= 2) {
-            setAction("panning");
-            const touch1 = event.touches[0];
-            const touch2 = event.touches[1];
-            const deltaX = (touch1.clientX + touch2.clientX) / 2 - startPanMousePosition.x;
-            const deltaY = (touch1.clientY + touch2.clientY) / 2 - startPanMousePosition.y;
-            setPanOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
-            setStartPanMousePosition({
-                x: (touch1.clientX + touch2.clientX) / 2,
-                y: (touch1.clientY + touch2.clientY) / 2
-            });
-            return;
-        }
-
-        const target = event.target as HTMLElement;
-        if (!isTouchDevice) {
-            target.style.cursor = toolCursors[tool];
-        }
-
-        if (action === "panning") {
-            const deltaX = clientX - startPanMousePosition.x;
-            const deltaY = clientY - startPanMousePosition.y;
-            setPanOffset(prev => ({ x: prev.x + deltaX, y: prev.y + deltaY }));
-            setStartPanMousePosition({ x: clientX, y: clientY });
-            return;
-        }
-
-        if (tool === "selection") {
-            const element = getElementAtPosition(clientX - panOffset.x, clientY - panOffset.y, elements);
-            if (element && !isTouchDevice) {
-                target.style.cursor = cursorForPosition(element.position);
-            }
-        } else if (tool === "eraser") {
-            if (!isTouchDevice) {
-                target.style.cursor = toolCursors.eraser;
-            }
-            if (action === "erasing") {
-                const element = getElementAtPosition(clientX - panOffset.x, clientY - panOffset.y, elements);
-                if (element) {
-                    setElements(prev => prev.filter(el => el.id !== element.id));
-                }
-            }
-        }
-
-        if (action === "drawing") {
-            if (!isTouchDevice) {
-                target.style.cursor = toolCursors[tool];
-            }
-            const index = elements.length - 1;
-            const element = elements[index];
-            if (element.type === "line" || element.type === "rectangle" || element.type === "ellipse" || element.type === "text") {
-                updateElement(index, element.x1, element.y1, clientX - panOffset.x, clientY - panOffset.y, tool);
-            } else if (element.type === "pencil") updateElement(index, 0, 0, clientX - panOffset.x, clientY - panOffset.y, tool);
-        } else if (action === "moving" && selectedElement) {
-            if (!isTouchDevice) {
-                target.style.cursor = "move";
-            }
-            if (selectedElement.type === "pencil") {
-                const newPoints = selectedElement.points.map((_, i) => ({ x: clientX - (selectedElement.xOffsets?.[i] || 0) - panOffset.x, y: clientY - (selectedElement.yOffsets?.[i] || 0) - panOffset.y, }));
-                const elementsCopy = [...elements];
-                elementsCopy[selectedElement.id] = { ...selectedElement, points: newPoints, };
-                setElements(elementsCopy, true);
-            } else if (selectedElement.type === "line" || selectedElement.type === "rectangle" || selectedElement.type === "ellipse" || selectedElement.type === "text") {
-                const offsetX = selectedElement.offsetX || 0;
-                const offsetY = selectedElement.offsetY || 0;
-                const width = selectedElement.x2 - selectedElement.x1;
-                const height = selectedElement.y2 - selectedElement.y1;
-                const newX1 = clientX - offsetX - panOffset.x;
-                const newY1 = clientY - offsetY - panOffset.y;
-                const options = selectedElement.type === "text" ? { text: selectedElement.text } : undefined;
-                updateElement(selectedElement.id, newX1, newY1, newX1 + width, newY1 + height, selectedElement.type, options);
-            }
-        } else if (action === "resizing" && selectedElement) {
-            if (selectedElement.type === "line" || selectedElement.type === "rectangle" || selectedElement.type === "ellipse") {
-                if (selectedElement.position) {
-                    const resizedCoord = resizedCoordinates(clientX - panOffset.x, clientY - panOffset.y, selectedElement.position,
-                        { x1: selectedElement.x1, y1: selectedElement.y1, x2: selectedElement.x2, y2: selectedElement.y2 }
-                    );
-                    if (resizedCoord) {
-                        updateElement(selectedElement.id, resizedCoord.x1, resizedCoord.y1, resizedCoord.x2, resizedCoord.y2, selectedElement.type);
-                    }
-                }
-            }
-        }
-    };
-
-    const handleEnd = (event: React.MouseEvent | React.TouchEvent) => {
-        let clientX: number, clientY: number;
-
-        if ('changedTouches' in event) {
-            // Touch end event
-            const touch = event.changedTouches[0];
-            clientX = touch.clientX;
-            clientY = touch.clientY;
-        } else {
-            // Mouse up event
-            const { clientX: mouseX, clientY: mouseY } = getCoordinates(event);
-            clientX = mouseX;
-            clientY = mouseY;
-        }
-
-        if (selectedElement) {
-            if (
-                selectedElement.type === "text" &&
-                clientX - (selectedElement as any).offsetX === selectedElement.x1 &&
-                clientY - (selectedElement as any).offsetY === selectedElement.y1
-            ) {
-                setAction("writing");
-                return;
-            }
-            const index = selectedElement.id;
-            const { id, type } = elements[index];
-            if ((action === "drawing" || action === "resizing") && adjustmentRequired(type)) {
-                const { x1, y1, x2, y2 } = adjustElementCoordinates(elements[index] as LineElement | RectangleElement | EllipseElement);
-                updateElement(id, x1, y1, x2, y2, type as Tool);
-            }
-        }
-        if (action === "writing") return;
-        setAction("none");
-        setSelectedElement(null);
     };
 
     const handleBlur = (event: React.FocusEvent<HTMLTextAreaElement>) => {
@@ -603,7 +616,7 @@ const Home = () => {
                 width: '100vw',
                 overflow: 'hidden',
                 position: 'relative',
-                touchAction: 'none' // Prevent default touch behaviors
+                touchAction: 'none'
             }}
         >
             <Tools
@@ -644,14 +657,10 @@ const Home = () => {
             <canvas
                 id="canvas"
                 ref={canvasRef}
-                onMouseDown={handleStart}
-                onMouseMove={handleMove}
-                onMouseUp={handleEnd}
-                onTouchStart={handleStart}
-                onTouchMove={handleMove}
-                onTouchEnd={handleEnd}
                 style={{
-                    position: "absolute",
+                    position: "fixed",
+                    top: 0,
+                    left: 0,
                     zIndex: 1,
                     background: "#000",
                     width: '100%',
@@ -680,7 +689,7 @@ const Home = () => {
                             fontSize: `clamp(14px, 3vw, 20px)`,
                             color: 'white',
                             zIndex: 3,
-                            touchAction: 'none' // Make draggable work better on touch devices
+                            touchAction: 'none'
                         }}
                     >
                         {latexExpression.map((latex, index) => (
