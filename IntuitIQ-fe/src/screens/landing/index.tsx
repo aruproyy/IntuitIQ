@@ -197,7 +197,7 @@ export default function LandingPage() {
                                                 rel="noopener noreferrer"
                                                 className="hover:scale-125 transition"
                                             >
-                                                <img src="src/assets/github.svg" alt="GitHub" width={28} />
+                                                <img src="/github.svg" alt="GitHub" width={28} />
                                             </a>
                                             <a
                                                 href={creator.linkedin}
@@ -205,7 +205,7 @@ export default function LandingPage() {
                                                 rel="noopener noreferrer"
                                                 className="hover:scale-125 transition"
                                             >
-                                                <img src="src/assets/linkedin.svg" alt="LinkedIn" width={28} />
+                                                <img src="/linkedin.svg" alt="LinkedIn" width={28} />
                                             </a>
                                             <a
                                                 href={creator.leetcode}
@@ -213,7 +213,7 @@ export default function LandingPage() {
                                                 rel="noopener noreferrer"
                                                 className="hover:scale-125 transition"
                                             >
-                                                <img src="src/assets/leetcode.svg" alt="LeetCode" width={20} />
+                                                <img src="/leetcode.svg" alt="LeetCode" width={20} />
                                             </a>
                                         </div>
                                         <p className="text-xs lg:text-lg text-gray-800 font-bold">{creator.dept_college}</p>
