@@ -245,7 +245,7 @@ export default function LandingPage() {
       description: "Draw, write, solve, and visualize mathematical problems in real-time with our intuitive canvas.",
       Icon: Square,
       animation: {
-        hidden: { opacity: 0, x: -50 },
+        hidden: { opacity: 0, x: 50 },
         visible: { opacity: 1, x: 0 }
       }
     },
