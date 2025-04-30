@@ -17,7 +17,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://intuitiq-v2.netlify.app",  # Your Netlify URL
-        "http://localhost:3000",                  # For local development
+        "*",                  # For local development
     ],
     allow_credentials=True,
     allow_methods=["*"],
