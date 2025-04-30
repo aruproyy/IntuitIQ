@@ -27,7 +27,7 @@ def analyze_text(question: str):
                    - For inline math: $expression$
                    - For display math (centered equations): $$expression$$
                    - Use proper LaTeX syntax for all mathematical notation
-                   - Use environments like \begin{{align*}} when needed for multi-line equations
+                   - Use environments like \\begin{{align*}} when needed for multi-line equations
                 
                 3. For non-mathematical questions, respond with exactly:
                    "I can only solve mathematical problems. Please provide a math-related question."
@@ -35,10 +35,10 @@ def analyze_text(question: str):
                 4. Never include introductory phrases or explanations - just the structured solution.
                 
                 5. Example of good formatting:
-                   Problem: Solve $$\int \frac{{1}}{{x^2 + 1}} \, dx$$
+                   Problem: Solve $$\int \\frac{{1}}{{x^2 + 1}} \, dx$$
                    Solution Steps:
-                   - Recognize this as a standard integral: $$\int \frac{{1}}{{x^2 + 1}} \, dx = \arctan(x) + C$$
-                   Final Answer: $$\arctan(x) + C$$
+                   - Recognize this as a standard integral: $$\int \\frac{{1}}{{x^2 + 1}} \, dx = \\arctan(x) + C$$
+                   Final Answer: $$\\arctan(x) + C$$
                 
                 The problem to solve is: {question}
                 """
