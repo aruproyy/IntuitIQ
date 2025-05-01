@@ -16,19 +16,12 @@ interface HistoryEntry {
 }
 
 function useWindowSize() {
-    const [windowSize, setWindowSize] = useState({
-        width: window.innerWidth,
-        height: window.innerHeight,
-    });
+    const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
 
     useEffect(() => {
         function handleResize() {
-            setWindowSize({
-                width: window.innerWidth,
-                height: window.innerHeight,
-            });
+            setWindowSize({ width: window.innerWidth, height: window.innerHeight });
         }
-
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
@@ -47,8 +40,8 @@ export default function History() {
     const { width } = useWindowSize();
     const isWidth = width < 769;
     const getButtonSizeClass = (width: number) => {
-        if (width < 361) return 'px-2 py-1 text-xs';  // Extra small screens
-        return 'px-4 py-2';                           // Default
+        if (width < 361) return 'px-2 py-1 text-xs';
+        return 'px-4 py-2';
     };
     const buttonSizeClass = getButtonSizeClass(width);
 
@@ -179,7 +172,7 @@ export default function History() {
                         </Link>
                     </Tooltip>
                 </div>
-                <p className={`text-white ${isWidth ? "text-xs" : "text-md"}`}>See your previously generated contents</p>
+                <p className={`text-white ${isWidth ? "text-xs" : "text-md"}`}>See your previously generated answers</p>
                 <div className="flex gap-4 mt-5 items-center">
                     <div className="flex gap-2">
                         <button
@@ -223,7 +216,7 @@ export default function History() {
                             <p className="text-gray-500 text-center mt-5">{getSectionMessage()}</p>
                         ) : (
                             <div className={`${width < 769 ? 'min-w-[800px]' : ''}`}>
-                                <div className="grid grid-cols-7 bg-gray-700 text-white text-center font-bold py-3 px-3 rounded-lg">
+                                <div className="sticky top-0 z-10 grid grid-cols-7 bg-gray-700 text-white text-center font-bold py-3 px-3 rounded-lg">
                                     <h2 className={`${width < 769 ? 'text-xs' : ''} col-span-2`}>INPUT</h2>
                                     <h2 className={`${width < 769 ? 'text-xs' : ''} col-span-2`}>RESPONSE</h2>
                                     <h2 className={`${width < 769 ? 'text-xs' : ''}`}>DATE</h2>

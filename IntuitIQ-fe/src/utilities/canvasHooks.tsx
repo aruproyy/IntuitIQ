@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Element } from "./types";
+import { Element } from "./canvasTypes";
 
 export const useHistory = (initialState: Element[]) => {
     const [index, setIndex] = useState(0);
@@ -41,8 +41,6 @@ export const usePressedKeys = () => {
 
 export const useDrawingTools = () => {
     const [color, setColor] = useState("#ffffff");
-    const [isEraser, setIsEraser] = useState(false);
-    const [eraserSize, setEraserSize] = useState(5);
     const [brushSize, setBrushSize] = useState(5);
-    return { color, setColor, isEraser, setIsEraser, eraserSize, setEraserSize, brushSize, setBrushSize };
+    return { color, setColor, brushSize, setBrushSize };
 };

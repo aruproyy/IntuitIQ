@@ -7,7 +7,7 @@ export default function Navbar() {
     const { isSignedIn } = useAuth();
     const navigate = useNavigate();
     return (
-        <nav className="fixed top-0 left-0 w-full bg-gradient-to-b from-indigo-700 to-transparent z-50">
+        <nav className="fixed top-0 left-0 w-full bg-gradient-to-b from-gray-800 to-transparent z-50">
             <div className="container mx-auto flex justify-between items-center py-3 px-6">
                 <div className="flex items-center">
                     <img src="/logo.png" alt="Logo" className="w-11 h-11 rounded-3xl cursor-pointer" onClick={() => navigate("/home")} />

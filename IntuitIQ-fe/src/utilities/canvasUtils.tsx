@@ -1,6 +1,6 @@
 import rough from 'roughjs';
 import getStroke from "perfect-freehand";
-import { Point, Element, LineElement, RectangleElement, PencilElement, TextElement, Tool, Position, EllipseElement } from './types';
+import { Point, Element, LineElement, RectangleElement, PencilElement, TextElement, Tool, Position, EllipseElement } from './canvasTypes';
 
 export const generator = rough.generator();
 

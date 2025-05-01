@@ -2,49 +2,48 @@ import { ColorPicker, Slider } from "@mantine/core";
 import { Eraser, MousePointer2, Palette, PencilLine, Slash, Square, Circle, Type } from "lucide-react";
 import { useEffect, useState } from "react";
 import ToolButton from "./ToolButton";
-import { Tool } from '../components/types';
+import { Tool } from '../utilities/canvasTypes';
 
 interface ToolsProps {
     tool: Tool;
     setTool: (tool: Tool) => void;
     color: string;
     setColor: (color: string) => void;
-    setIsEraser: (isEraser: boolean) => void;
-    eraserSize: number;
-    setEraserSize: (eraserSize: number) => void;
     brushSize: number;
     setBrushSize: (brushSize: number) => void;
 }
 
-export default function Tools({ tool, setTool, color, setColor, setIsEraser, eraserSize, setEraserSize, brushSize, setBrushSize }: ToolsProps) {
+export default function Tools({ tool, setTool, color, setColor, brushSize, setBrushSize }: ToolsProps) {
     const [scale, setScale] = useState(1);
+    const [topPosition, setTopPosition] = useState("50%");
 
     useEffect(() => {
         const handleResize = () => {
             const screenHeight = window.innerHeight;
-            if (screenHeight < 511) {
-                const newScale = Math.max(screenHeight / 511, 0.4);
-                setScale(newScale);
-            } else {
-                setScale(1);
-            }
-        };
+            const toolsHeight = 680;
+            const newScale = screenHeight < toolsHeight ? Math.max(screenHeight / toolsHeight, 0.4) : 1;
+            setScale(newScale);
+            let newTop: number;
+            if (screenHeight <= 540) newTop = 23;
+            else if (screenHeight >= 600 && screenHeight <= 800) newTop = 25;
+            else if (screenHeight >= 801 && screenHeight <= 1000) newTop = 30;
+            else newTop = 31;
+            setTopPosition(`${newTop}%`);
+        };    
         window.addEventListener("resize", handleResize);
         handleResize();
         return () => window.removeEventListener("resize", handleResize);
     }, []);
+    
 
     const handleToolSelect = (tool: Tool) => {
-        if (['selection', 'line', 'rectangle', 'ellipse', 'pencil', 'text', 'eraser', 'color'].includes(tool)) {
-            setTool(tool);
-            setIsEraser(tool === 'eraser');
-        }
+        if (['selection', 'line', 'rectangle', 'ellipse', 'pencil', 'text', 'eraser', 'color'].includes(tool)) setTool(tool);
     };
 
     return (
         <div
-            className="absolute flex flex-col mx-2 my-32 bg-gray-200 p-2 gap-3 rounded-xl z-10"
-            style={{ transform: `scale(${scale})`, transformOrigin: "top left" }}
+            className="fixed flex flex-col bg-gray-200 p-2 gap-3 rounded-xl z-10 left-2"
+            style={{ top: topPosition, transform: `scale(${scale})`, transformOrigin: "top left", transition: 'top 0.2s ease, transform 0.2s ease' }}
         >
             <ToolButton
                 tool="selection"
@@ -119,9 +118,7 @@ export default function Tools({ tool, setTool, color, setColor, setIsEraser, era
                 label="Eraser"
                 onClick={handleToolSelect}
                 scale={scale}
-            >
-                <Slider color="indigo" size="xs" w={100} value={eraserSize} onChange={setEraserSize} min={1} max={10} label={(value) => `Eraser Size: ${value}`} />
-            </ToolButton>
+            />
         </div>
     );
 }
