@@ -10,18 +10,18 @@ import { motion, useAnimation, useInView } from 'framer-motion';
 
 const FloatingMathSymbols = () => {
     const symbols = [
-        { Icon: Sigma, top: '15%', left: '5%', delay: 0, duration: 25, color: 'text-indigo-300/80', size: 48 },
-        { Icon: Square, top: '25%', left: '85%', delay: 2, duration: 20, color: 'text-purple-300/80', size: 48 },
-        { Icon: FunctionSquare, top: '75%', left: '10%', delay: 4, duration: 30, color: 'text-pink-300/80', size: 48 },
-        { Icon: Calculator, top: '65%', left: '90%', delay: 1, duration: 35, color: 'text-yellow-300/80', size: 48 },
-        { Icon: PieChart, top: '45%', left: '15%', delay: 3, duration: 25, color: 'text-blue-300/80', size: 48 },
-        { Icon: Divide, top: '20%', left: '25%', delay: 5, duration: 40, color: 'text-green-300/80', size: 48 },
-        { Icon: Plus, top: '80%', left: '75%', delay: 2.5, duration: 30, color: 'text-red-300/80', size: 48 },
-        { Icon: Minus, top: '60%', left: '50%', delay: 1.5, duration: 35, color: 'text-orange-300/80', size: 48 },
-        { Icon: X, top: '35%', left: '65%', delay: 3.5, duration: 25, color: 'text-teal-300/80', size: 48 },
-        { Icon: Equal, top: '55%', left: '35%', delay: 4.5, duration: 20, color: 'text-indigo-300/80', size: 48 },
-        { Icon: Pi, top: '30%', left: '45%', delay: 6, duration: 40, color: 'text-purple-300/80', size: 48 },
-        { Icon: InfinityIcon, top: '70%', left: '25%', delay: 7, duration: 30, color: 'text-pink-300/80', size: 48 },
+        { Icon: Sigma, top: '15%', left: '5%', delay: 0, duration: 25, color: 'text-indigo-300/80', size: 80 },
+        { Icon: Square, top: '25%', left: '85%', delay: 0, duration: 20, color: 'text-purple-300/80', size: 80 },
+        { Icon: FunctionSquare, top: '75%', left: '10%', delay: 1, duration: 30, color: 'text-pink-300/80', size: 80 },
+        { Icon: Calculator, top: '65%', left: '90%', delay: 1, duration: 35, color: 'text-yellow-300/80', size: 80 },
+        { Icon: PieChart, top: '45%', left: '15%', delay: 0, duration: 25, color: 'text-blue-300/80', size: 80 },
+        { Icon: Divide, top: '20%', left: '25%', delay: 1, duration: 40, color: 'text-green-300/80', size: 80 },
+        { Icon: Plus, top: '80%', left: '75%', delay: 1.5, duration: 30, color: 'text-red-300/80', size: 80 },
+        { Icon: Minus, top: '60%', left: '50%', delay: 1, duration: 35, color: 'text-orange-300/80', size: 80},
+        { Icon: X, top: '35%', left: '65%', delay: 0.5, duration: 25, color: 'text-teal-300/80', size: 80 },
+        { Icon: Equal, top: '55%', left: '35%', delay: 1, duration: 20, color: 'text-indigo-300/80', size: 80 },
+        { Icon: Pi, top: '30%', left: '45%', delay: 0, duration: 40, color: 'text-purple-300/80', size: 80 },
+        { Icon: InfinityIcon, top: '70%', left: '25%', delay: 1.5, duration: 30, color: 'text-pink-300/80', size: 80 },
     ];
 
     return (
