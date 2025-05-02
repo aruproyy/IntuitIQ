@@ -608,7 +608,7 @@ const Home = () => {
                 <Draggable
                     defaultPosition={{ x: latexPosition.x, y: latexPosition.y }}
                     onStop={(_, data) => { setLatexPosition({ x: data.x, y: data.y }) }}
-                    bounds="parent"
+                    
                 >
                     <div
                         className="latex-container"
