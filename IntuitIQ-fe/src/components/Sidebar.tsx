@@ -95,6 +95,10 @@ export default function Sidebar() {
             const { steps, result } = response.data.data[0];
             const cleanedProblem = cleanMathExpression(textBoxValue);
             const cleanedAnswer = cleanMathExpression(result?.toString() || "");
+            if (!steps || cleanedAnswer === "The provided text does not contain any solvable mathematical problems or equations.") {
+                setApiError("The provided text does not contain any solvable mathematical problems or equations.");
+                return;
+            }
 
             const formattedResponse = `
                 <div class="math-solution">
