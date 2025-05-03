@@ -239,7 +239,7 @@ export default function History() {
                                         </div>
                                         <div className={`${width < 769 ? 'text-xs' : ''} col-span-2 px-2 ${entry.type === "text" ? "truncate" : "flex items-center justify-center"}`}>
                                             {entry.type === "text"
-                                                ? entry.output
+                                                ? entry.responses[0]?.result
                                                 : entry.responses?.length > 0
                                                     ? JSON.stringify(`${entry.responses[0]?.expr ?? "N/A"} = ${entry.responses[0]?.result ?? "N/A"}`)
                                                     : "No response available"}
@@ -248,7 +248,7 @@ export default function History() {
                                         <button className={`${width < 769 ? 'text-xs' : ''} flex items-center justify-center transition-all duration-300`}
                                             onClick={() => handleCopy(
                                                 entry.type === "text"
-                                                    ? entry.output
+                                                    ? entry.responses[0]?.result
                                                     : entry.responses?.length > 0
                                                         ? JSON.stringify(`${entry.responses[0]?.expr ?? "N/A"} = ${entry.responses[0]?.result ?? "N/A"}`)
                                                         : "No response available",

@@ -7,7 +7,7 @@ import Footer from "../../components/Footer";
 import Sidebar from "../../components/Sidebar";
 import Tools from "../../components/Tools";
 import { useDrawingTools, useHistory, usePressedKeys } from "../../utilities/canvasHooks";
-import { Action, Element, GeneratedResult, Response, LineElement, RectangleElement, Tool, EllipseElement } from "../../utilities/canvasTypes";
+import { Action, Element, GeneratedImageResult, ImageResponse, LineElement, RectangleElement, Tool, EllipseElement } from "../../utilities/canvasTypes";
 import { adjustElementCoordinates, adjustmentRequired, createElement, cursorForPosition, drawElement, getElementAtPosition, resizedCoordinates, generator } from "../../utilities/canvasUtils";
 
 const Home = () => {
@@ -18,7 +18,7 @@ const Home = () => {
     const pressedKeys = usePressedKeys();
     const [reset, setReset] = useState(false);
     const [dictOfVars, setDictOfVars] = useState({});
-    const [result, setResult] = useState<GeneratedResult>();
+    const [result, setResult] = useState<GeneratedImageResult>();
     const [latexPosition, setLatexPosition] = useState({ x: 0, y: 0 });
     const [latexExpression, setLatexExpression] = useState<Array<string>>([]);
     const [visibleLines, setVisibleLines] = useState(0);
@@ -522,8 +522,8 @@ const Home = () => {
                 setIsSolving(false);
                 return;
             }
-            const validResults: GeneratedResult[] = [];
-            resp.data.forEach((data: Response) => {
+            const validResults: GeneratedImageResult[] = [];
+            resp.data.forEach((data: ImageResponse) => {
                 if (data.assign === true) setDictOfVars(prev => ({ ...prev, [data.expr]: data.steps }));
                 if (data.expr && (data.steps || data.result)) {
                     validResults.push({
@@ -608,7 +608,6 @@ const Home = () => {
                 <Draggable
                     defaultPosition={{ x: latexPosition.x, y: latexPosition.y }}
                     onStop={(_, data) => { setLatexPosition({ x: data.x, y: data.y }) }}
-                    
                 >
                     <div
                         className="latex-container"

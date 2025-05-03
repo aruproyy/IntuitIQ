@@ -40,7 +40,7 @@ async def run(data: ImageData):
         }
         collection.insert_one(record)
         return {
-            "message": "Image processed",
+            "message": "Image problem processed successfully",
             "data": responses,
             "status": "success"
         }

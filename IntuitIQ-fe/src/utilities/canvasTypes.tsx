@@ -9,5 +9,7 @@ export type Element = LineElement | RectangleElement | PencilElement | TextEleme
 export type Position = "tl" | "tr" | "bl" | "br" | "start" | "end" | "inside" | null;
 export type Tool = "selection" | "color" | "pencil" | "line" | "rectangle" | "ellipse" | "text" | "eraser";
 export type Action = "none" | "drawing" | "moving" | "resizing" | "panning" | "writing" | "erasing";
-export interface GeneratedResult { expression: string; procedure: string; solution: string }
-export interface Response { expr: string; steps: string; result: string; assign: boolean; }
+export interface GeneratedImageResult { expression: string; procedure: string; solution: string }
+export interface ImageResponse { expr: string; steps: string; result: string; assign: boolean; }
+export interface GeneratedTextResult { expression: string; procedure: string; solution: string }
+export interface TextResponse { expr: string; steps: string; result: string; }

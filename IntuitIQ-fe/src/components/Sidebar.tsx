@@ -11,10 +11,8 @@ import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import axios from "axios";
 import { Check, ChevronLeft, Copy, EllipsisVertical, Trash2 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useUser } from "@clerk/clerk-react";
-
-interface ParsedContent { problem: string; steps: string[]; finalAnswer: string; }
 
 export default function Sidebar() {
     const { user } = useUser();
@@ -22,42 +20,191 @@ export default function Sidebar() {
     const [textBoxValue, setTextBoxValue] = useState<string>("");
     const [loading, setLoading] = useState<boolean>(false);
     const [copied, setCopied] = useState<boolean>(false);
-    const editor = useEditor({
-        extensions: [
-            StarterKit, Underline, Superscript, SubScript, Highlight,
-            Placeholder.configure({ placeholder: 'Your answer will appear here...' }),
-            TextAlign.configure({ types: ['heading', 'paragraph'] }),
-        ],
-        content: '',
-    });
+    const [apiError, setApiError] = useState<string | null>(null);
+
+    const cleanMathExpression = (expression: string): string => {
+        if (!expression) return expression;
+        
+        return expression
+            .replace(/\\text\{([^}]+)\}/g, '$1')  // Remove \text{}
+            .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '<sup>$1</sup>&frasl;<sub>$2</sub>')  // Format fractions nicely
+            .replace(/\\left\(/g, '(').replace(/\\right\)/g, ')')  // Simplify parentheses
+            .replace(/\\[()\[\]]/g, '')  // Remove other LaTeX brackets
+            .replace(/\$\$/g, '')  // Remove $$ markers
+            .replace(/\*/g, '')  // Remove asterisks
+            .replace(/`/g, '')  // Remove backticks
+            .replace(/\\times/g, '×')  // Convert \times to multiplication symbol
+            .replace(/-{3,}/g, '=')  // Convert --- to =
+            .replace(/[{}]/g, '')  // Remove curly braces
+            .replace(/\s+/g, ' ')  // Collapse multiple spaces
+            .trim();
+    };
+
+    const formatSteps = (steps: string | string[]): string => {
+        if (!steps) return '<div class="step">No steps provided</div>';
+        
+        const stepsArray = typeof steps === 'string' ? 
+            steps.split('\n').filter(step => step.trim()) : 
+            steps;
+
+        return stepsArray
+            .filter(step => step.trim().length > 0)
+            .map((step, index) => {
+                const cleanedStep = cleanMathExpression(step)
+                    .replace(/^Step \d+:\s*/i, '')  // Remove existing step numbers
+                    .replace(/^\d+\.\s*/, '');  // Remove numbered list prefixes
+
+                return `
+                    <div class="step">
+                        <span class="step-number">Step ${index + 1}.</span>
+                        <span class="step-content">${cleanedStep}</span>
+                    </div>
+                `;
+            })
+            .join('');
+    };
 
     const fetchTextOutput = async () => {
-        if (!textBoxValue.trim()) return;
-        if (!user) return;
+        if (!textBoxValue.trim()) {
+            setApiError("Please enter a question");
+            return;
+        }
+        if (!user) {
+            setApiError("You must be logged in");
+            return;
+        }
+
         setLoading(true);
+        setApiError(null);
+
         try {
-            const response = await axios({
-                method: "post",
-                url: `${import.meta.env.VITE_API_URL}/text_calculate`,
-                headers: { 'Content-Type': 'application/json' },
-                data: { user_id: user.id, question: textBoxValue }
-            });
-            const result = response.data.data;
-            const parsed = parseRawResponse(result);
-            const formattedContent = `
-        <h2>Problem:</h2>
-        <p>${parsed.problem}</p>
-        <h2>Solution Steps:</h2>
-        <ol>
-          ${parsed.steps.map(step => `<li>${step}</li>`).join('')}
-        </ol>
-        <h2>Final Answer:</h2>
-        <p>${parsed.finalAnswer}</p>
-      `;
-            if (editor) editor.commands.setContent(formattedContent);
+            const response = await axios.post(
+                `${import.meta.env.VITE_API_URL}/text_calculate`,
+                {
+                    user_id: user.id,
+                    question: textBoxValue
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    timeout: 15000
+                }
+            );
+
+            const { steps, result } = response.data.data[0];
+            const cleanedProblem = cleanMathExpression(textBoxValue);
+            const cleanedAnswer = cleanMathExpression(result?.toString() || "");
+
+            const formattedResponse = `
+                <div class="math-solution">
+                    <div class="problem-section">
+                       <strong> <h3 class="section-title">Problem:</h3></strong>
+                        <div class="problem-content">${cleanedProblem}</div>
+                    </div>
+                    
+                    <div class="solution-section">
+                       <strong> <h3 class="section-title">Solution Steps:</h3></strong>
+                        <div class="steps-container">
+                            ${formatSteps(steps)}
+                        </div>
+                    </div>
+                    
+                    <div class="answer-section">
+                       <strong><h3 class="section-title">Final Answer:</h3></strong>
+                        <div class="answer-content">${cleanedAnswer || "No result calculated"}</div>
+                    </div>
+                    
+                    <style>
+                        .math-solution {
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                            color: #333;
+                            line-height: 1.6;
+                            padding: 1rem;
+                        }
+                        
+                        .section-title {
+                            font-weight: 600;
+                            color: #4f46e5;
+                            margin: 1rem 0 0.5rem 0;
+                            font-size: 1.1rem;
+                        }
+                        
+                        .problem-content {
+                            background: #f8fafc;
+                            padding: 0.75rem;
+                            border-radius: 0.375rem;
+                            border-left: 3px solid #4f46e5;
+                            margin-bottom: 0.5rem;
+                        }
+                        
+                        .steps-container {
+                            background: #f8fafc;
+                            padding: 0.75rem;
+                            border-radius: 0.375rem;
+                            border-left: 3px solid #10b981;
+                        }
+                        
+                        .step {
+                            display: flex;
+                            margin-bottom: 0.5rem;
+                        }
+                        
+                        .step-number {
+                            font-weight: 600;
+                            margin-right: 0.5rem;
+                            color: #10b981;
+                            min-width: 2rem;
+                        }
+                        
+                        .answer-content {
+                            background: #f0fdf4;
+                            padding: 0.75rem;
+                            border-radius: 0.375rem;
+                            border-left: 3px solid #10b981;
+                            font-weight: 600;
+                        }
+                        
+                        .error-message {
+                            color: #ef4444;
+                            padding: 1rem;
+                            background: #fef2f2;
+                            border-radius: 0.375rem;
+                        }
+                        
+                        sup {
+                            vertical-align: super;
+                            font-size: smaller;
+                        }
+                        
+                        sub {
+                            vertical-align: sub;
+                            font-size: smaller;
+                        }
+                    </style>
+                </div>
+            `;
+
+            if (editor) {
+                editor.commands.setContent(formattedResponse);
+            }
             setTextBoxValue("");
-        } catch (error) {
-            console.error("Error running text route:", error);
+
+        } catch (error: any) {
+            console.error("API Error:", error);
+            const errorMessage = error.response?.data?.error ||
+                error.response?.data?.message ||
+                error.message ||
+                "Error processing your question";
+            setApiError(errorMessage);
+
+            if (editor) {
+                editor.commands.setContent(`
+                    <div class="error-message">
+                        ${errorMessage}
+                    </div>
+                `);
+            }
         } finally {
             setLoading(false);
         }
@@ -67,44 +214,38 @@ export default function Sidebar() {
         if (editor) {
             const text = editor.getText().trim();
             navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
         }
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
     };
 
-    const parseRawResponse = (text: string): ParsedContent => {
-        const problemMatch = text.match(/Problem:(.*?)(Solution Steps:|$)/s);
-        const stepsMatch = text.match(/Solution Steps:(.*?)(Final Answer:|$)/s);
-        const finalAnswerMatch = text.match(/Final Answer:(.*)/s);
-        const problem = problemMatch ? problemMatch[1].trim() : "Not Found";
-        const stepsRaw = stepsMatch ? stepsMatch[1].trim() : "";
-        const finalAnswer = finalAnswerMatch ? finalAnswerMatch[1].trim() : "Not Found";
-        const steps = stepsRaw
-            .split(/-\s|Step\s\d+:/)
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0);
-        return { problem, steps, finalAnswer };
+    const clearSolution = () => {
+        if (editor) {
+            editor.commands.setContent("");
+        }
+        setApiError(null);
     };
 
-    useEffect(() => {
-        const script = document.createElement("script");
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.9/MathJax.js?config=TeX-MML-AM_CHTML";
-        script.async = true;
-        document.head.appendChild(script);
-        script.onload = () => {
-            (window as any).MathJax.Hub.Config({
-                tex2jax: { inlineMath: [["$", "$"], ["\\(", "\\)"]] },
-                showProcessingMessages: false,
-                messageStyle: "none"
-            });
-            (window as any).MathJax.Hub.Queue(["Typeset", (window as any).MathJax.Hub]);
-        };
-        return () => { document.head.removeChild(script); };
-    }, []);
-
-    useEffect(() => {
-        if (editor) (window as any).MathJax && (window as any).MathJax.Hub.Queue(["Typeset", (window as any).MathJax.Hub]);
-    }, [editor?.getHTML()]);
+    const editor = useEditor({
+        extensions: [
+            StarterKit.configure({
+                heading: {
+                    levels: [1, 2],
+                },
+            }),
+            Underline.configure(),
+            Highlight.configure(),
+            SubScript.configure(),
+            Superscript.configure(),
+            TextAlign.configure({
+                types: ['heading', 'paragraph'],
+            }),
+            Placeholder.configure({
+                placeholder: 'Your step-by-step solution will appear here...'
+            }),
+        ],
+        content: '',
+    });
 
     return (
         <>
@@ -119,6 +260,11 @@ export default function Sidebar() {
                 transitionProps={{ transition: 'fade-left', duration: 300, timingFunction: 'linear' }}
                 styles={{ content: { height: "75vh", marginTop: "10vh" } }}>
                 <div className="flex flex-col gap-3">
+                    {apiError && (
+                        <div className="text-red-500 text-sm p-2 bg-red-50 rounded">
+                            {apiError}
+                        </div>
+                    )}
                     <textarea
                         data-autofocus
                         className="border rounded-lg p-2 w-full"
@@ -129,16 +275,22 @@ export default function Sidebar() {
                     />
                     <div className="flex justify-between my-2">
                         <div className="flex gap-2">
-                            <Button
-                                title="Copy"
-                                className={`px-3 transition-all duration-300 ${copied ? "bg-green-600 hover:bg-green-600 scale-110" : "bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:scale-110"}`}
-                                onClick={handleCopy}
-                            >
-                                {copied ? <Check className="w-4 h-4 transition-all duration-300" /> : <Copy className="w-4 h-4 transition-all duration-300" />}
-                            </Button>
-                            <Button title="Clear" className="px-3 transition-all duration-300 bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:scale-110" onClick={() => { if (editor) editor.commands.setContent(""); }}>
-                                <Trash2 className="w-4 h-4 transition-all duration-300" />
-                            </Button>
+                            <Tooltip label="Copy solution">
+                                <Button
+                                    className={`px-3 transition-all duration-300 ${copied ? "bg-green-600 hover:bg-green-600 scale-110" : "bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:scale-110"}`}
+                                    onClick={handleCopy}
+                                >
+                                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                </Button>
+                            </Tooltip>
+                            <Tooltip label="Clear solution">
+                                <Button 
+                                    className="px-3 transition-all duration-300 bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:scale-110" 
+                                    onClick={clearSolution}
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </Button>
+                            </Tooltip>
                         </div>
                         <Button
                             className={`px-3 border-2 text-indigo-600 transition 
@@ -149,11 +301,11 @@ export default function Sidebar() {
                             onClick={fetchTextOutput}
                             disabled={loading}
                         >
-                            {loading ? "Fetching..." : "Run"}
+                            {loading ? "Processing..." : "Solve"}
                         </Button>
                     </div>
                 </div>
-                <RichTextEditor editor={editor}>
+                <RichTextEditor editor={editor} style={{}}>
                     <RichTextEditor.Toolbar
                         sticky
                         stickyOffset={60}
@@ -191,17 +343,8 @@ export default function Sidebar() {
             </Drawer>
             {!opened && (
                 <Tooltip label="Expand" position="left" withArrow>
-                    <div
-                        className="absolute right-0 py-1 px-1 z-10 top-1/2 transform -translate-y-1/2 text-white rounded-full cursor-pointer hover:bg-white hover:text-black duration-500 lg:p-2 md:p-1.5 sm:p-1"
-                        style={{
-                            transition: 'transform 0.2s ease, top 0.2s ease',
-                        }}
-                    >
-                        <ChevronLeft
-                            size={40}
-                            onClick={open}
-                            className="animate-pulse-and-move lg:w-10 lg:h-10 md:w-8 md:h-8 sm:w-6 sm:h-6"
-                        />
+                    <div className="absolute right-0 py-2 z-10 top-[calc(57vh-5rem)] text-white rounded-md cursor-pointer hover:bg-white hover:text-black duration-500">
+                        <ChevronLeft size={40} onClick={open} className="animate-pulse-and-move" />
                     </div>
                 </Tooltip>
             )}
