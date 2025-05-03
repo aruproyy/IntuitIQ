@@ -68,7 +68,7 @@ SYSTEM_PROMPT = (
 
 def analyze_text(question: str):
     try:
-        chat_response = client.chat.complete(
+        chat_response = client.chat(
             model=model,
             messages=[
                 {
