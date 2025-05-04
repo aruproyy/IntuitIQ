@@ -1,4 +1,4 @@
-from mistralai import Mistral
+from mistralai.client import MistralClient
 from constants import MISTRAL_API_KEY
 import ast
 from fallback_response import extract_dict_from_response
@@ -6,7 +6,7 @@ from fallback_response import extract_dict_from_response
 if not MISTRAL_API_KEY:
     raise ValueError("MISTRAL_API_KEY not found in environment variables.")
 
-client = Mistral(api_key=MISTRAL_API_KEY)
+client = MistralClient(api_key=MISTRAL_API_KEY)
 model = "mistral-large-latest"
 
 SYSTEM_PROMPT = (
@@ -69,7 +69,7 @@ SYSTEM_PROMPT = (
 
 def analyze_text(question: str):
     try:
-        chat_response = client.chat.complete(
+        chat_response = client.chat(
             model=model,
             messages=[
                 {
