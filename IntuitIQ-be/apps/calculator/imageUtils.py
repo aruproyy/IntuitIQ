@@ -3,6 +3,7 @@ import ast
 import json
 from PIL import Image
 from constants import GEMINI_API_KEY
+from fallback_response import extract_dict_from_response
 
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -107,7 +108,7 @@ def analyze_image(img: Image, dict_of_vars: dict):
         answers = ast.literal_eval(response.text)
     except Exception as e:
         print(f"Error in parsing response from Gemini API: {e}")
-        answers = [{response.text.strip("[{}]")}]
+        answers = extract_dict_from_response(response.text)
     print(f"Processed Image Answer: {answers}")
     for answer in answers:
         if 'assign' in answer:
