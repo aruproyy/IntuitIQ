@@ -37,4 +37,4 @@ app.include_router(text_history_router, prefix="/text_history", tags=["text_hist
 #     uvicorn.run("main:app", host=SERVER_URL, port=int(PORT), reload=(ENV == "dev"))
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8080)), reload=False)
