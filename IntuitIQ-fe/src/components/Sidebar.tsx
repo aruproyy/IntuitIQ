@@ -245,7 +245,7 @@ export default function Sidebar() {
                 types: ['heading', 'paragraph'],
             }),
             Placeholder.configure({
-                placeholder: 'Your step-by-step solution will appear here...'
+                placeholder: 'Your solution will appear here...'
             }),
         ],
         content: '',

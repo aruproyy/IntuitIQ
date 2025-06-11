@@ -1,14 +1,15 @@
-import google.generativeai as genai
-import ast
-import json
+from google import genai
+from google.genai import types
+import ast, json
 from PIL import Image
 from constants import GEMINI_API_KEY
+from process_response import process_response_from_json
 from fallback_response import extract_dict_from_response
 
-genai.configure(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY)
+MODEL = "gemini-2.0-flash"
 
 def analyze_image(img: Image, dict_of_vars: dict):
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
     dict_of_vars_str = json.dumps(dict_of_vars, ensure_ascii=False)
     prompt = (
         f"You have been given an image with some mathematical expressions, equations, or graphical problems, and you need to solve them. "
@@ -101,18 +102,19 @@ def analyze_image(img: Image, dict_of_vars: dict):
         f"DO NOT USE BACKTICKS OR MARKDOWN FORMATTING. "
         f"PROPERLY QUOTE THE KEYS AND VALUES IN THE DICTIONARY FOR EASIER PARSING WITH Python's ast.literal_eval."
     )
-    response = model.generate_content([prompt, img])
+    response = client.models.generate_content(
+        model=MODEL,
+        contents=[prompt, img],
+        config=types.GenerateContentConfig(response_modalities=["Text"])
+    )
     print(f"Raw Image Response: {response.text}")
-    answers = []
+    text = process_response_from_json(response.text)
     try:
-        answers = ast.literal_eval(response.text)
+        answers = ast.literal_eval(text)
     except Exception as e:
-        print(f"Error in parsing response from Gemini API: {e}")
-        answers = extract_dict_from_response(response.text)
+        print(f"Error in parsing: {e}")
+        answers = extract_dict_from_response(text)
     print(f"Processed Image Answer: {answers}")
-    for answer in answers:
-        if 'assign' in answer:
-            answer['assign'] = True
-        else:
-            answer['assign'] = False
+    for ans in answers:
+        ans['assign'] = 'assign' in ans
     return answers
